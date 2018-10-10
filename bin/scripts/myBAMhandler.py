@@ -2,6 +2,7 @@
 import re
 import os
 import sys
+import csv
 import string
 import math
 import copy
@@ -104,7 +105,7 @@ def get_Loc1(curloc, commonOptions):
     elif commonOptions['SeqTech'] == "Pacbio":
         rep_up_down_size = 1000
     elif commonOptions['SeqTech'] == "Nanopore":
-        rep_up_down_size = 1000
+        rep_up_down_size = 400
     else:
         rep_up_down_size = 1000
     retOptions['gene_start_end'] = [curloc[1] - rep_up_down_size, curloc[2] + rep_up_down_size]
@@ -366,7 +367,7 @@ def getRepeatForGivenGene(commonOptions, specifiedOptions, moreOptions):
     os.system(get_alg_cmd)
     if os.path.getsize(alignfile) == 0:
         if commonOptions['outlog'] <= M_WARNING:
-            logging.info(get_alg_cmd + '\n')
+            logging.info(get_alg_cmdp + '\n')
             logging.info('The file %s have zero size\nTry without chr' % alignfile)
             #print ('The file %s have zero size\nTry without chr' % alignfile)
         get_alg_cmd = 'samtools view ' + bamfile + ' ' + \
@@ -518,35 +519,40 @@ def getRepeatForGivenGene(commonOptions, specifiedOptions, moreOptions):
     rptrue = []
     rpfalse = []
     orignial = []
-    for currep_ind in range(len(repeats)):
-        currep = repeats[currep_ind]
-        newstr = currep[1]
+    with open(bamfile.split('.bam')[0] + '.csv', 'w') as csvfile:
+        csvwriter = csv.writer(csvfile, delimiter='\t')
+        csvwriter.writerow(['read_id','repeat_count'])
+        for currep_ind in range(len(repeats)):
+            currep = repeats[currep_ind]
+            newstr = currep[1]
 
-        pre0 = 0
-        predstats = ''
-        if len(newstr) < commonOptions['MaxRep'] * len_repPat:
-            if currep[0]:
-                    # print 'BAMhandler', repeat_start_end, chr
-                newstr, pre0, predstats = getUnsymAlignAndHMM(
-                    repPat, forw_rerv, repeatFlankLength, hmmoptions, currep[1], commonOptions, ids[currep_ind])
+            pre0 = 0
+            predstats = ''
+            if len(newstr) < commonOptions['MaxRep'] * len_repPat:
+                if currep[0]:
+                        # print 'BAMhandler', repeat_start_end, chr
+                    newstr, pre0, predstats = getUnsymAlignAndHMM(
+                        repPat, forw_rerv, repeatFlankLength, hmmoptions, currep[1], commonOptions, ids[currep_ind])
+                else:
+                    if 'thread' not in specifiedOptions:
+                        logging.warning('The sequence is partial: ' + str(len(newstr)) + ' ' + chr + ' ' + repeatName + ' ' + repPat + ' ' + str(
+                            currep[0]) + ' reads name:' + currep[2] + " " + str(commonOptions['MaxRep']) + " " + str(commonOptions['MaxRep'] * len_repPat))
+                        if handleint:
+                            logging.warning(str(repeats_dict[currep[2]][:2]))
             else:
-                if 'thread' not in specifiedOptions:
-                    logging.warning('The sequence is partial: ' + str(len(newstr)) + ' ' + chr + ' ' + repeatName + ' ' + repPat + ' ' + str(
-                        currep[0]) + ' reads name:' + currep[2] + " " + str(commonOptions['MaxRep']) + " " + str(commonOptions['MaxRep'] * len_repPat))
-                    if handleint:
-                        logging.warning(str(repeats_dict[currep[2]][:2]))
-        else:
-            logging.warning('The sequence is too long: ' + str(len(newstr)) + ' ' + chr + ' ' + repeatName + ' ' + repPat + ' ' + str(
-                currep[0]) + ' reads name:' + currep[2] + " " + str(commonOptions['MaxRep']) + " " + str(commonOptions['MaxRep'] * len_repPat))
-            if handleint:
-                logging.warning(str(repeats_dict[currep[2]][:2]))
-        orignial.append([currep[1], pre0, predstats])
-        currep[1] = newstr
-        if currep[0]:
-            rptrue.append(len(currep[1]) / float(len_repPat))  # 3.0);
-        else:
-            rpfalse.append(len(currep[1]) / float(len_repPat))  # 3.0);
+                logging.warning('The sequence is too long: ' + str(len(newstr)) + ' ' + chr + ' ' + repeatName + ' ' + repPat + ' ' + str(
+                    currep[0]) + ' reads name:' + currep[2] + " " + str(commonOptions['MaxRep']) + " " + str(commonOptions['MaxRep'] * len_repPat))
+                if handleint:
+                    logging.warning(str(repeats_dict[currep[2]][:2]))
+            orignial.append([currep[1], pre0, predstats])
+            currep[1] = newstr
+            if currep[0]:
+                rptrue.append(len(currep[1]) / float(len_repPat))  # 3.0);
+                csvwriter.writerow([ids[currep_ind], str(len(currep[1]) / float(len_repPat))])
+            else:
+                rpfalse.append(len(currep[1]) / float(len_repPat))  # 3.0);
 
+    csvfile.close()
     rptrue.sort()
     rpfalse.sort()
     trstr = 'true ' + str(len(rptrue)) + ' ['

@@ -74,14 +74,14 @@ def getSCA3ForGivenGene(commonOptions, specifiedOptions, moreOptions):
 
 	start_time = time.time();
 
-	bamfile = fastafile + '.bam'
+	bamfile = fastafile
 	bamfile = fastafile + unique_file_id + '.bam'
 	specifiedOptions['bamfile'] = bamfile
 
 	myret = {}; myretdetail = {}
 
 	#cmd = 'bwa mem -k17 -w'+str(bwamem_w_option)+' -W40 -r10 -A1 -B1 -O1 -E1 -L1 -t '+mthreads+' -v 2 '+hg_reference_and_index+'/'+hgfile+' '+ fastafile +' | samtools view -S -b | samtools sort > '+bamfile
-	cmd = 'bwa mem -k17 -w'+str(bwamem_w_option)+' -W40 -r10 -A1 -B1 -O1 -E1 -L1 -t '+mthreads+' -v 2 '+hgfile+' '+ fastafile +' | samtools view -S -b | samtools sort > '+bamfile
+	cmd = 'bwa mem -k17 -w'+str(bwamem_w_option)+' -W40 -r10 -A1 -B1 -O1 -E1 -L1 -t '+mthreads+' -v 2 '+hgfile+' '+ fastafile +' | samtools view -Sb - | samtools sort - '+bamfile.split('.bam')[0]
 	logging.info(cmd);
 	os.system(cmd);
 		
